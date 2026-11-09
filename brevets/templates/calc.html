@@ -126,18 +126,39 @@
     var km = control.find("input[name='km']").val();
     var open_time_field = control.find("input[name='open']");
     var close_time_field = control.find("input[name='close']");
-    
-    $.getJSON(TIME_CALC_URL, { km: km }, 
-      // response handler
+    var notes = control.find(".notes");
+
+    // clear row
+    if (km === "" || isNaN(parseFloat(km))) {
+      open_time_field.val("");
+      close_time_field.val("");
+      notes.text("");
+      return;
+    }
+
+    // Brevet len & start time for each row
+    var brevet_dist_km = $("#brevet_dist_km").val();
+    var begin_time = $("#begin_date").val() + "T" + $("#begin_time").val();
+
+    $.getJSON(TIME_CALC_URL,
+      { km: km, brevet_dist_km: brevet_dist_km, begin_time: begin_time },
       function(data) {
          var times = data.result;
-         console.log("Got a response: " +  times);
-         console.log("Response.open = " + times.open);
-         open_time_field.val( moment(times.open).format("ddd M/D H:mm"));
-         close_time_field.val( moment(times.close).format("ddd M/D H:mm"));
-       } // end of handler function
-     );// End of getJSON
-    }
+         if (times.error) {
+           open_time_field.val("");
+           close_time_field.val("");
+           notes.text(times.error);
+           return;
+         }
+         open_time_field.val( moment.parseZone(times.open).format("ddd M/D H:mm"));
+         close_time_field.val( moment.parseZone(times.close).format("ddd M/D H:mm"));
+         notes.text("");
+       });
+  }
+
+  function calc_all_rows() {
+    $(".control").each(function() { calc_times($(this)); });
+  }
 
   $(document).ready(function(){
    // Do the following when the page is finished loading
@@ -165,7 +186,7 @@
              // Then calculate times for this entry
              calc_times(control_entry);
           });
-
+          $('#brevet_dist_km, #begin_date, #begin_time').change(calc_all_rows);
      });   // end of what we do on document ready
 
 </script>

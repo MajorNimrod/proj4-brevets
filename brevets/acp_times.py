@@ -6,6 +6,17 @@ and https://rusa.org/pages/rulesForRiders
 """
 import arrow
 
+SPEEDS = [
+    (200, 15, 34),
+    (400, 15, 32),
+    (600, 15, 30),
+    (1000, 11.428, 28),
+    (1300, 13.333, 26),
+]
+
+# # Official final-control closing times, in hours
+FINAL_CLOSE_HOURS = {200: 13.5, 300: 20, 400: 27, 600: 40, 1000: 75}
+
 #  Note for CIS 322 Fall 2016:
 #  You MUST provide the following two functions
 #  with these signatures, so that I can write
@@ -15,6 +26,19 @@ import arrow
 #  javadoc comments.
 #
 
+def calculate_hours(control_dist_km, brevet_dist_km, which):
+   """The number of hours it takes to ride control_dist_km using max open speeds."""
+   # I just came back from a crew race so this is super convienent that I'm working on this haha
+   dist = min(control_dist_km, brevet_dist_km)
+   hours = 0
+   previous_end = 0
+   for end, min_speed, max_speed in SPEEDS:
+      if dist <= previous_end:
+         break
+      speed = max_speed if which == "open" else min_speed
+      hours += (min(dist, end) - previous_end) / speed # in km
+      previous_end = end
+   return hours
 
 def open_time(control_dist_km, brevet_dist_km, brevet_start_time):
     """
@@ -29,7 +53,8 @@ def open_time(control_dist_km, brevet_dist_km, brevet_start_time):
        An ISO 8601 format date string indicating the control open time.
        This will be in the same time zone as the brevet start time.
     """
-    return arrow.now().isoformat()
+    minutes = round(calculate_hours(control_dist_km, brevet_dist_km, "open") * 60)
+    return arrow.get(brevet_start_time).shift(minutes=minutes).isoformat()
 
 
 def close_time(control_dist_km, brevet_dist_km, brevet_start_time):
@@ -45,4 +70,13 @@ def close_time(control_dist_km, brevet_dist_km, brevet_start_time):
        An ISO 8601 format date string indicating the control close time.
        This will be in the same time zone as the brevet start time.
     """
-    return arrow.now().isoformat()
+    if control_dist_km >= brevet_dist_km:
+       hours = FINAL_CLOSE_HOURS[brevet_dist_km]
+    elif control_dist_km == 0:
+       hours = 1
+    elif control_dist_km <= 60:
+       hours = control_dist_km / 20 + 1
+    else:
+       hours = calculate_hours(control_dist_km, brevet_dist_km, "close")
+    minutes = round(hours * 60)
+    return arrow.get(brevet_start_time).shift(minutes=minutes).isoformat()
